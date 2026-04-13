@@ -163,6 +163,53 @@ ostream& operator<<(ostream& os, Vector<T>& v){
 // TODO: Implementar como PR
 template <typename T>
 istream& operator>>(istream& is, Vector<T>& v){
+    char ch;
+    // Se valida que el input comience con "["
+    if(!(is >> ch) || ch != '['){
+        is.setstate(ios::failbit);
+        return is;
+    }
+
+    // Se valida que el input termine con "]"
+    is >> ws;
+    if(is.peek() == ']'){
+        is.get();
+        return is;
+    }
+
+    T data{};
+    Ref ref{};
+    char open, sep, close;
+
+    while(true){
+        // Se valida que cada elemento inicie con "("
+        if(!(is >> open) || open != '('){
+            is.setstate(ios::failbit);
+            return is;
+        }
+
+        // Se valida que el elemento tenga el formato "(data, ref)"
+        if(!(is >> data >> sep >> ref >> close) || sep != ',' || close != ')'){
+            is.setstate(ios::failbit);
+            return is;
+        }
+
+        // Se agrega el elemento al vector
+        v.push_back(data, ref);
+
+        is >> ws;
+
+        // Se intenta leer el siguiente separador o el final del vector "," o "]"
+        if(!(is >> ch))
+            return is;
+        if(ch == ']')
+            break;
+        if(ch != ','){
+            is.setstate(ios::failbit);
+            return is;
+        }
+    }
+
     return is;
 }
 

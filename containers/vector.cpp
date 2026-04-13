@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <sstream>
 #include <thread>
 #include "vector.h"
 
@@ -88,4 +89,23 @@ void DemoConcurrentVector(){
 
     // Resultado esperado sin race condition: 4 elementos * 100000 * 5 threads = 500000
     cout << "Resultado (esperado 500000): " << v << endl;
+
+
+    cout<<"----------PRUEBA DE LECTURA DEL VECTOR----------"<<endl;
+
+    istringstream iss("[(1,2),(3,6),(5,7)]");
+    istringstream iss2("[(1,2)(3,6),(5,7)]");
+    Vector<T1> v3;
+
+    if(iss >> v3)
+        cout << "Vector leido: " << v3 << endl;
+    else
+        cout << "Error al leer vector" << endl;
+    
+    if(iss2 >> v3)
+        cout << "Vector leido: " << v3 << endl;
+    else
+        cout << "Error al leer vector" << endl;
+
+
 }
