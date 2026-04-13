@@ -65,6 +65,7 @@ void DemoVector(){
 
 // DemoConcurrentVector
 void DemoConcurrentVector(){
+    cout<<"----------PRUEBA DE CONCURRENCIA EN FOREACH----------"<<endl;
     Vector<T1> v(4);
     v.push_back(0, 0);
     v.push_back(0, 0);
@@ -79,9 +80,15 @@ void DemoConcurrentVector(){
         cout << "Thread " << thread_id << " terminado\n";
     };
 
-    thread t1(worker, 1);
-    thread t2(worker, 2);
-    thread t3(worker, 3);
+    auto workerReverse = [&v](int thread_id){
+        for(int i = 0; i < 100000; i++)
+            v.ReverseForEach(AddOne);
+        cout << "Thread " << thread_id << " terminado\n";
+    };
+
+    thread t1(workerReverse, 1);
+    thread t2(workerReverse, 2);
+    thread t3(workerReverse, 3);
     thread t4(worker, 4);
     thread t5(worker, 5);
 
@@ -89,9 +96,9 @@ void DemoConcurrentVector(){
 
     // Resultado esperado sin race condition: 4 elementos * 100000 * 5 threads = 500000
     cout << "Resultado (esperado 500000): " << v << endl;
+    
 
-
-    cout<<"----------PRUEBA DE LECTURA DEL VECTOR----------"<<endl;
+    cout<<"\n----------PRUEBA DE LECTURA DEL VECTOR----------"<<endl;
 
     istringstream iss("[(1,2),(3,6),(5,7)]");
     istringstream iss2("[(1,2)(3,6),(5,7)]");
