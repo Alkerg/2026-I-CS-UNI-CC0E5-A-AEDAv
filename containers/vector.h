@@ -9,6 +9,7 @@
 #include "general_iterator.h"
 #include "util.h"
 #include "../types.h"
+#include <mutex> // Fix para compilación de vector
 using namespace std;
 
 template <typename Container>
