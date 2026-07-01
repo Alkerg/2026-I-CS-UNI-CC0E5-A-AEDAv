@@ -14,4 +14,12 @@ using T1 = int;
 
 using Ref = long;
 
+using TChar = char;
+
+using TBool = bool;
+
+using TLong = long;
+
+using TString = std::string;
+
 #endif // __TYPES_H__
