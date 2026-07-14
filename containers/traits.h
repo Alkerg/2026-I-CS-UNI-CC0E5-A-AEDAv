@@ -10,10 +10,10 @@ struct BaseTrait{
 };
 
 template <typename _Node>
-struct AscendingTrait : public BaseTrait<_Node, less<typename _Node::value_type>>{
+struct AscendingTrait : public BaseTrait<_Node, std::less<typename _Node::value_type>>{
 };
 template <typename _Node>
-struct DescendingTrait : public BaseTrait<_Node, greater<typename _Node::value_type>>{
+struct DescendingTrait : public BaseTrait<_Node, std::greater<typename _Node::value_type>>{
 };
 
 template <typename _value_type, typename _Comp, typename _objIdType>
@@ -24,12 +24,29 @@ struct BTreeTrait{
 
 };
 
-template <typename _value_type, typename _Comp = greater<_value_type>, typename _objIdType = T1>
+template <typename _value_type, typename _Comp = std::greater<_value_type>, typename _objIdType = T1>
 struct BTreeDescendingTrait: public BTreeTrait<_value_type, _Comp, _objIdType>{
 };
 
-template <typename _value_type, typename _Comp = less<_value_type>, typename _objIdType = T1>
+template <typename _value_type, typename _Comp = std::less<_value_type>, typename _objIdType = T1>
 struct BTreeAscendingTrait: public BTreeTrait<_value_type, _Comp, _objIdType>{
 };
+
+
+// Traits de grafo por defecto
+struct DefaultNodeTraits{
+    using id_type    = T1;
+    using value_type = Type;
+};
+
+struct DefaultEdgeTraits{
+    using id_type      = T1;
+    using node_id_type = T1;
+    using weight_type  = T1;
+};
+
+// Traits de grafo especificos
+struct MyNodeTrait { using id_type = T1; using value_type = T1; };
+struct MyEdgeTrait { using id_type = T1; using node_id_type = T1; using weight_type = T1; };
 
 #endif // __TRAITS_H__

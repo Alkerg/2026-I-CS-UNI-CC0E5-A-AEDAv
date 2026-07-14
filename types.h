@@ -1,6 +1,8 @@
 #ifndef __TYPES_H__
 #define __TYPES_H__
 
+#include <cstddef> // std::size_t
+
 // C/C++
 // typedef int Type;
 
@@ -21,5 +23,9 @@ using TBool = bool;
 using TLong = long;
 
 using TString = std::string;
+
+using TSize = std::size_t;
+
+using TDouble = double;
 
 #endif // __TYPES_H__
