@@ -1,400 +1,226 @@
 #pragma once
 
-#include <iostream>
-#include <sstream>
-#include <string>
+#include <concepts>
+#include <type_traits>
 #include <vector>
-#include <queue>
 #include <unordered_map>
-#include <unordered_set>
-#include <mutex>
-#include <shared_mutex>
-#include <utility>
-#include "../types.h"
-#include "./traits.h"
+#include <cstddef>
 
-using namespace std;
+namespace graph {
 
+// Forward declarations
+template<typename NodeTraits>
+class CNode;
 
+template<typename EdgeTraits>
+class CEdge;
 
-// Nodo de grafo
-template <typename NodeTraits = DefaultNodeTraits>
-class GraphNode{
+// Concepts for NodeTraits and EdgeTraits
+template<typename T>
+concept NodeTraitsConcept = requires {
+    typename T::id_type;                // Type for node identifiers
+    typename T::value_type;              // Type of data stored in node (optional)
+    // possibly other requirements
+};
+
+template<typename T>
+concept EdgeTraitsConcept = requires {
+    typename T::id_type;                 // Type for edge identifiers
+    typename T::node_id_type;             // Type for node identifiers (should match NodeTraits::id_type)
+    typename T::weight_type;              // Type for edge weight (optional)
+    // possibly other requirements
+};
+
+// Concept for GraphTraits
+template<typename T>
+concept GraphTraitsConcept = requires {
+    typename T::Node;                      // Must be a CNode<...> instantiation
+    typename T::Edge;                      // Must be a CEdge<...> instantiation
+    // Node and Edge should have appropriate traits? Could be checked later.
+};
+
+// Default node traits
+struct DefaultNodeTraits {
+    using id_type = std::size_t;
+    using value_type = int;  // dummy
+};
+
+// Default edge traits
+struct DefaultEdgeTraits {
+    using id_type = std::size_t;
+    using node_id_type = std::size_t;
+    using weight_type = double;
+};
+
+// CNode template
+template<NodeTraitsConcept NodeTraits = DefaultNodeTraits>
+class CNode {
 public:
     using traits_type = NodeTraits;
-    using id_type     = typename NodeTraits::id_type;
-    using value_type  = typename NodeTraits::value_type;
-    using MySelf      = GraphNode<NodeTraits>;
-private:
-    id_type    m_id;
-    value_type m_value;
-public:
-    GraphNode() {
-        m_id = id_type();
-        m_value = value_type();
-    }
-    GraphNode(id_type id, value_type value){
-        m_id = id;
-        m_value = value;
-    }
-    GraphNode(const MySelf &other){
-        m_id = other.m_id;
-        m_value = other.m_value;
-    }
-    GraphNode(MySelf &&other) noexcept  {
-        m_id = move(other.m_id);
-        m_value = move(other.m_value);
-    }
-    MySelf& operator=(const MySelf &other) = default;
-    MySelf& operator=(MySelf &&other) = default;
+    using id_type = typename NodeTraits::id_type;
+    using value_type = typename NodeTraits::value_type;
 
-    id_type     getId() const { return m_id; }
-    value_type  getValue() const { return m_value; }
-    value_type& getValueRef() { return m_value; }
-    void        setValue(value_type value) { m_value = value; }
+    // Constructors
+    explicit CNode(id_type id) : id_(id) {}
+    CNode(id_type id, value_type data) : id_(id), data_(std::move(data)) {}
+
+    // Getters
+    id_type id() const noexcept { return id_; }
+    value_type& data() noexcept { return data_; }
+    const value_type& data() const noexcept { return data_; }
+
+    // Setters
+    void set_data(const value_type& new_data) { data_ = new_data; }
+
+    // Possibly other methods...
+
+private:
+    id_type id_;
+    value_type data_;
 };
 
-template <typename NodeTraits>
-ostream& operator<<(ostream& os, const GraphNode<NodeTraits>& node){
-    return os << "(" << node.getId() << ", " << node.getValue() << ")";
-}
-
-// Arista de grafo
-template <typename EdgeTraits = DefaultEdgeTraits>
-class GraphEdge{
+// CEdge template
+template<EdgeTraitsConcept EdgeTraits = DefaultEdgeTraits>
+class CEdge {
 public:
-    using traits_type  = EdgeTraits;
-    using id_type      = typename EdgeTraits::id_type;
+    using traits_type = EdgeTraits;
+    using id_type = typename EdgeTraits::id_type;
     using node_id_type = typename EdgeTraits::node_id_type;
-    using weight_type  = typename EdgeTraits::weight_type;
-    using MySelf       = GraphEdge<EdgeTraits>;
+    using weight_type = typename EdgeTraits::weight_type;
+
+    // Constructors
+    CEdge(id_type id, node_id_type src, node_id_type tgt)
+        : id_(id), source_(src), target_(tgt), weight_() {}
+    CEdge(id_type id, node_id_type src, node_id_type tgt, weight_type w)
+        : id_(id), source_(src), target_(tgt), weight_(w) {}
+
+    // Getters
+    id_type id() const noexcept { return id_; }
+    node_id_type source() const noexcept { return source_; }
+    node_id_type target() const noexcept { return target_; }
+    weight_type weight() const noexcept { return weight_; }
+
+    // Setters
+    void set_weight(weight_type w) noexcept { weight_ = w; }
+
 private:
-    id_type      m_id;
-    node_id_type m_source;
-    node_id_type m_target;
-    weight_type  m_weight;
+    id_type id_;
+    node_id_type source_;
+    node_id_type target_;
+    weight_type weight_;
+};
+
+// Default graph traits that use the default node and edge traits
+struct DefaultGraphTraits {
+    using Node = CNode<DefaultNodeTraits>;
+    using Edge = CEdge<DefaultEdgeTraits>;
+};
+
+// CGraph template
+template<GraphTraitsConcept GraphTraits = DefaultGraphTraits>
+class CGraph {
 public:
-    GraphEdge() {
-        m_id = id_type();
-        m_source = node_id_type();
-        m_target = node_id_type();
-        m_weight = weight_type();
-    }
-    GraphEdge(id_type id, node_id_type source, node_id_type target, weight_type weight){
-        m_id = id;
-        m_source = source;
-        m_target = target;
-        m_weight = weight;
-    }
-    GraphEdge(const MySelf &other){
-        m_id = other.m_id;
-        m_source = other.m_source;
-        m_target = other.m_target;
-        m_weight = other.m_weight;
-    }
-    GraphEdge(MySelf &&other) noexcept{
-        m_id = move(other.m_id);
-        m_source = move(other.m_source);
-        m_target = move(other.m_target);
-        m_weight = move(other.m_weight);
-    }
-    MySelf& operator=(const MySelf &other) = default;
-    MySelf& operator=(MySelf &&other) = default;
-
-    id_type      getId() const { return m_id; }
-    node_id_type getSource() const { return m_source; }
-    node_id_type getTarget() const { return m_target; }
-    weight_type  getWeight() const { return m_weight; }
-    void         setWeight(weight_type weight) { m_weight = weight; }
-};
-
-template <typename EdgeTraits>
-ostream& operator<<(ostream& os, const GraphEdge<EdgeTraits>& edge){
-    return os<<"Edge ID="<<edge.getId()<<"\t"<<"("<<edge.getSource()<<")-"<<edge.getWeight()<<"->("<<edge.getTarget()<<")";
-}
-
-// Traits de grafo dirigido y no dirigido.
-template <typename NodeTrait = DefaultNodeTraits, typename EdgeTrait = DefaultEdgeTraits>
-struct DirectedGraphTrait{
-    using Node = GraphNode<NodeTrait>;
-    using Edge = GraphEdge<EdgeTrait>;
-    static const TBool is_directed = true;
-};
-
-template <typename NodeTrait = DefaultNodeTraits, typename EdgeTrait = DefaultEdgeTraits>
-struct UndirectedGraphTrait{
-    using Node = GraphNode<NodeTrait>;
-    using Edge = GraphEdge<EdgeTrait>;
-    static const TBool is_directed = false;
-};
-
-// Grafo
-template <typename GraphTraits = UndirectedGraphTrait<>>
-class Graph{
-public:
+    // Exposed types
     using graph_traits = GraphTraits;
-    using node_type    = typename GraphTraits::Node;
-    using edge_type    = typename GraphTraits::Edge;
+    using node_type = typename GraphTraits::Node;
+    using edge_type = typename GraphTraits::Edge;
     using node_id_type = typename node_type::id_type;
-    using value_type   = typename node_type::value_type;
     using edge_id_type = typename edge_type::id_type;
-    using weight_type  = typename edge_type::weight_type;
-    using MySelf       = Graph<GraphTraits>;
 
-    using node_container = unordered_map<node_id_type, node_type>;
-    using edge_container = unordered_map<edge_id_type, edge_type>;
+    // Container types (can be customized via allocators later)
+    using node_container = std::unordered_map<node_id_type, node_type>;
+    using edge_container = std::unordered_map<edge_id_type, edge_type>;
+
+    // Iterators
+    using node_iterator = typename node_container::iterator;
+    using const_node_iterator = typename node_container::const_iterator;
+    using edge_iterator = typename edge_container::iterator;
+    using const_edge_iterator = typename edge_container::const_iterator;
+
+    // Constructors
+    CGraph() = default;
+    explicit CGraph(const node_container& nodes) : nodes_(nodes) {}
+    explicit CGraph(node_container&& nodes) : nodes_(std::move(nodes)) {}
+
+    // Rule of five (defaulted)
+    ~CGraph() = default;
+    CGraph(const CGraph&) = default;
+    CGraph(CGraph&&) = default;
+    CGraph& operator=(const CGraph&) = default;
+    CGraph& operator=(CGraph&&) = default;
+
+    // Node operations
+    node_type& add_node(node_id_type id, typename node_type::value_type data = {}) {
+        // Check if node already exists? Could throw or return existing.
+        auto [it, inserted] = nodes_.try_emplace(id, node_type(id, std::move(data)));
+        // if not inserted, handle error (e.g., throw or return existing)
+        return it->second;
+    }
+
+    bool remove_node(node_id_type id) noexcept {
+        // Also need to remove edges incident to this node.
+        // For skeleton, just remove from nodes, leaving edges dangling.
+        // Better to remove edges as well.
+        return nodes_.erase(id) > 0;
+    }
+
+    node_type* find_node(node_id_type id) noexcept {
+        auto it = nodes_.find(id);
+        return it != nodes_.end() ? &it->second : nullptr;
+    }
+
+    const node_type* find_node(node_id_type id) const noexcept {
+        auto it = nodes_.find(id);
+        return it != nodes_.end() ? &it->second : nullptr;
+    }
+
+    // Edge operations
+    edge_type& add_edge(edge_id_type id, node_id_type src, node_id_type tgt,
+                        typename edge_type::weight_type weight = {}) {
+        // Check if nodes exist? Could throw if not.
+        auto [it, inserted] = edges_.try_emplace(id, edge_type(id, src, tgt, weight));
+        return it->second;
+    }
+
+    bool remove_edge(edge_id_type id) noexcept {
+        return edges_.erase(id) > 0;
+    }
+
+    edge_type* find_edge(edge_id_type id) noexcept {
+        auto it = edges_.find(id);
+        return it != edges_.end() ? &it->second : nullptr;
+    }
+
+    const edge_type* find_edge(edge_id_type id) const noexcept {
+        auto it = edges_.find(id);
+        return it != edges_.end() ? &it->second : nullptr;
+    }
+
+    // Iterators
+    node_iterator nodes_begin() noexcept { return nodes_.begin(); }
+    node_iterator nodes_end() noexcept { return nodes_.end(); }
+    const_node_iterator nodes_cbegin() const noexcept { return nodes_.cbegin(); }
+    const_node_iterator nodes_cend() const noexcept { return nodes_.cend(); }
+
+    edge_iterator edges_begin() noexcept { return edges_.begin(); }
+    edge_iterator edges_end() noexcept { return edges_.end(); }
+    const_edge_iterator edges_cbegin() const noexcept { return edges_.cbegin(); }
+    const_edge_iterator edges_cend() const noexcept { return edges_.cend(); }
+
+    // Capacity
+    size_t node_count() const noexcept { return nodes_.size(); }
+    size_t edge_count() const noexcept { return edges_.size(); }
+    bool empty() const noexcept { return nodes_.empty(); }
+
+    // Clear
+    void clear() noexcept {
+        nodes_.clear();
+        edges_.clear();
+    }
 
 private:
-    node_container m_nodes;
-    edge_container m_edges;
-    edge_id_type   m_nextEdgeId;   // Ids de arista autogenerados
-    mutable shared_mutex m_mtx;
-
-public:
-    // Iterador generico
-    template <typename MapIterator, typename Value>
-    class map_iterator{
-        MapIterator m_it;
-    public:
-        map_iterator(MapIterator it) : m_it(it) {}
-        map_iterator(const map_iterator &other) = default;
-        map_iterator(map_iterator &&other) = default;
-        Value& operator*() const { return m_it->second; }
-        map_iterator& operator++() { ++m_it; return *this; }
-        TBool operator==(const map_iterator &o) const { return m_it == o.m_it; }
-        TBool operator!=(const map_iterator &o) const { return m_it != o.m_it; }
-    };
-
-    // Vista generica de un map
-    template <typename Container, typename Iterator, typename ConstIterator>
-    class map_view{
-        Container& m_c;
-    public:
-        map_view(Container& c) : m_c(c) {}
-        Iterator      begin()        { return Iterator(m_c.begin()); }
-        Iterator      end()          { return Iterator(m_c.end()); }
-        ConstIterator cbegin() const { return ConstIterator(m_c.cbegin()); }
-        ConstIterator cend()   const { return ConstIterator(m_c.cend()); }
-    };
-
-    // Iteradores y vistas de nodos y aristas
-    using node_iterator       = map_iterator<typename node_container::iterator, node_type>;
-    using const_node_iterator = map_iterator<typename node_container::const_iterator, const node_type>;
-    using edge_iterator       = map_iterator<typename edge_container::iterator, edge_type>;
-    using const_edge_iterator = map_iterator<typename edge_container::const_iterator, const edge_type>;
-
-    using NodesView = map_view<node_container, node_iterator, const_node_iterator>;
-    using EdgesView = map_view<edge_container, edge_iterator, const_edge_iterator>;
-
-    // Constructores
-    Graph() : m_nextEdgeId(edge_id_type()) {}
-    Graph(const MySelf &other) : m_nextEdgeId(edge_id_type()){
-        shared_lock<shared_mutex> lockOther(other.m_mtx);
-        m_nodes      = other.m_nodes;
-        m_edges      = other.m_edges;
-        m_nextEdgeId = other.m_nextEdgeId;
-    }
-    Graph(MySelf &&other) : m_nextEdgeId(edge_id_type()){
-        unique_lock<shared_mutex> lockOther(other.m_mtx);
-        m_nodes      = move(other.m_nodes);
-        m_edges      = move(other.m_edges);
-        m_nextEdgeId = other.m_nextEdgeId;
-    }
-    MySelf& operator=(const MySelf &other){
-        if(this != &other){
-            MySelf temp(other);
-            unique_lock<shared_mutex> lock(m_mtx);
-            swap(m_nodes, temp.m_nodes);
-            swap(m_edges, temp.m_edges);
-            swap(m_nextEdgeId, temp.m_nextEdgeId);
-        }
-        return *this;
-    }
-    MySelf& operator=(MySelf &&other){
-        if(this != &other){
-            MySelf temp(move(other));
-            unique_lock<shared_mutex> lock(m_mtx);
-            swap(m_nodes, temp.m_nodes);
-            swap(m_edges, temp.m_edges);
-            swap(m_nextEdgeId, temp.m_nextEdgeId);
-        }
-        return *this;
-    }
-
-    // Añadir nodos
-    TBool addNode(node_id_type id, value_type value = value_type()){
-        unique_lock<shared_mutex> lock(m_mtx);
-        if(m_nodes.count(id) > 0)
-            return false;         // el nodo ya existe
-        m_nodes.insert({id, node_type(id, value)});
-        return true;
-    }
-
-    // Buscar nodo
-    const node_type* findNode(node_id_type id) const{
-        shared_lock<shared_mutex> lock(m_mtx);
-        auto it = m_nodes.find(id);
-        if(it != m_nodes.end())
-            return &it->second;
-        return nullptr;
-    }
-
-    // Remover nodo
-    TBool removeNode(node_id_type id){
-        unique_lock<shared_mutex> lock(m_mtx);
-        if(m_nodes.count(id) == 0)
-            return false;
-        m_nodes.erase(id);
-
-        // borrar aristas incidentes (entrantes y salientes)
-        vector<edge_id_type> to_delete;
-        for(const auto &pair : m_edges){
-            const edge_type &edge = pair.second;
-            if(edge.getSource() == id || edge.getTarget() == id)
-                to_delete.push_back(edge.getId());
-        }
-        for(TSize i = 0; i < to_delete.size(); ++i)
-            m_edges.erase(to_delete[i]); 
-        return true;
-    }
-
-    // Añadir arista
-    edge_id_type addEdge(node_id_type source, node_id_type target, weight_type weight = weight_type()){
-        unique_lock<shared_mutex> lock(m_mtx);
-        if(m_nodes.count(source) == 0 || m_nodes.count(target) == 0)
-            return edge_id_type(-1);               // no crear aristas colgantes
-        edge_id_type id = m_nextEdgeId;
-        ++m_nextEdgeId;
-        m_edges.insert({id, edge_type(id, source, target, weight)});
-        return id;
-    }
-
-    // Buscar arista
-    const edge_type* findEdge(edge_id_type id) const{
-        shared_lock<shared_mutex> lock(m_mtx);
-        auto it = m_edges.find(id);
-        if(it != m_edges.end())
-            return &it->second;
-        return nullptr;
-    }
-
-    // Remover arista
-    TBool removeEdge(edge_id_type id){
-        unique_lock<shared_mutex> lock(m_mtx);
-        if(m_edges.count(id) == 0)
-            return false;
-        return m_edges.erase(id) > 0;
-    }
-
-    // Adyacencia (considera direccion)
-    vector<node_id_type> getAdjacentNodes(node_id_type id) const{
-        shared_lock<shared_mutex> lock(m_mtx);
-        vector<node_id_type> neighbors;
-
-        for(const auto &pair : m_edges){
-            const edge_type &edge = pair.second;
-            if(edge.getSource() == id)
-                neighbors.push_back(edge.getTarget()); // nodos salientes
-            else if(!GraphTraits::is_directed && edge.getTarget() == id)
-                neighbors.push_back(edge.getSource());  // añade nodos entrantes
-        }
-        return neighbors;
-    }
-
-    // Contadores y estado
-    TSize nodeCount() const{
-        shared_lock<shared_mutex> lock(m_mtx);
-        return m_nodes.size();
-    }
-    TSize edgeCount() const{
-        shared_lock<shared_mutex> lock(m_mtx);
-        return m_edges.size();
-    }
-    TBool empty() const{
-        shared_lock<shared_mutex> lock(m_mtx);
-        return m_nodes.empty();
-    }
-    void clear(){
-        unique_lock<shared_mutex> lock(m_mtx);
-        m_nodes.clear();
-        m_edges.clear();
-        m_nextEdgeId = edge_id_type();
-    }
-
-    // Acceso para nodos y aristas
-    NodesView nodes() { return NodesView(m_nodes); }
-    EdgesView edges() { return EdgesView(m_edges); }
-
-    // Recorrido foreach propio
-    template <typename Func>
-    void ForEach(Func func){
-        shared_lock<shared_mutex> lock(m_mtx);
-        for(auto &pair : m_nodes)
-            func(pair.second);
-    }
-
-    // Impresion del grafo
-    TString toString() const{
-        shared_lock<shared_mutex> lock(m_mtx);
-        ostringstream oss;
-        TBool first = true;
-        for(const auto &pair : m_edges){
-            const edge_type &edge = pair.second;
-            if(!first)
-                oss << "\n";
-            first = false;
-            oss<<"("<<edge.getSource()<< ","<<m_nodes.at(edge.getSource()).getValue()<<")-"
-                <<edge.getWeight()<<"->("<<edge.getTarget()<<","<<m_nodes.at(edge.getTarget()).getValue()<<")";
-        }
-        return oss.str();
-    }
+    node_container nodes_;
+    edge_container edges_;
 };
 
-// Imprime el grafo con el operador <<
-template <typename GraphTraits>
-ostream& operator<<(ostream& os, const Graph<GraphTraits>& graph){
-    return os << graph.toString();
-}
-
-// Añade nodos "(id,value)" y aristas "(source,target,weight)" con operador >>
-template <typename GraphTraits>
-istream& operator>>(istream& is, Graph<GraphTraits>& graph){
-    using node_id_type = typename Graph<GraphTraits>::node_id_type;
-    using value_type   = typename Graph<GraphTraits>::value_type;
-    using weight_type  = typename Graph<GraphTraits>::weight_type;
-
-    TChar ch;
-    while(is>>ch){                 // salta espacios y separadores buscando '('
-        if(ch != '(')
-            continue;
-        TString inside;
-        getline(is, inside, ')');    // contenido hasta ')'
-        stringstream fields(inside);
-        TString part;
-        vector<TString> tokens;
-        while(getline(fields, part, ','))
-            tokens.push_back(part);
-        
-        // Caso de nodo
-        if(tokens.size() == 2){
-            stringstream s0(tokens[0]), s1(tokens[1]);
-            node_id_type id;
-            value_type value;
-
-            // Añadir nodo
-            if((s0 >> id) && (s1 >> value))
-                graph.addNode(id, value);
-        
-        // Caso de arista
-        }else if(tokens.size() == 3){
-            stringstream s0(tokens[0]), s1(tokens[1]), s2(tokens[2]);
-            node_id_type source, target;
-            weight_type weight;
-
-            // Añadir arista
-            if((s0 >> source) && (s1 >> target) && (s2 >> weight))
-                graph.addEdge(source, target, weight);
-        }
-    }
-    return is;
-}
+} // namespace graph
